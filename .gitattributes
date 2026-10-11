@@ -1,0 +1,5 @@
+# Finales de linea Unix (LF) para todos los ficheros de texto,
+# tambien al trabajar desde Windows: luna es Linux y los scripts
+# bash fallan con finales de linea de Windows (CRLF).
+* text=auto eol=lf
+*.pdf binary

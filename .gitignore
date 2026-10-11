@@ -1,0 +1,6 @@
+# Ficheros generados al compilar
+*.o
+fichero_ejecutable
+
+# Salida temporal de ejecuciones
+log
