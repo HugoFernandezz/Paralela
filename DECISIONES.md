@@ -4,6 +4,12 @@ Práctica final de Programación Paralela 2026/27: cálculo del gradiente y del 
 
 Aquí queda cada decisión de diseño: qué había que decidir, qué opciones había, cuál se recomendó y cuál se eligió. El documento se actualiza al cerrar las decisiones de cada fase.
 
+## Entorno
+
+- Repositorio en luna: `/home/g15/Paralela` (usuario `g15`). Se compila y se ejecuta en `practicasPP-26-27/`.
+- Comprobado en luna (fase A0): nvcc 12.6 (V12.6.85) en `/usr/local/cuda/bin/nvcc`, driver 535.288.01 y GPU NVIDIA GeForce RTX 2080 Ti.
+- La plantilla compila con `-O2 -Wall`: sale solo con avisos, sin errores, y se ejecuta en los modos 0 y 1.
+
 ## Resumen
 
 | # | Fase | Decisión | Elegida |
@@ -146,4 +152,5 @@ Así el sistema completo pasa a la GPU con tres copias, sin punteros anidados.
 
 - [ ] Recompilar con `type_data` = `double` y repetir las mediciones, para comparar con `float` (decisión 5).
 - [x] Aplicar en el Makefile `-O2` (decisión 1) y `-Wall` en lugar de `-w`.
-- [ ] Validar en luna el toolchain: la plantilla compila y se ejecuta, y un kernel mínimo corre con el driver 535 (fase A0).
+- [x] Validar en luna que la plantilla compila y se ejecuta (fase A0).
+- [ ] Validar en luna que un kernel mínimo compilado con nvcc 12.6 corre con el driver 535 (fase A0).
