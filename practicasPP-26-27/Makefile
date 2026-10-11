@@ -84,10 +84,17 @@ ifeq ($(dbg),1)
       NVCCFLAGS += 
       TARGET    := debug
 else
-      CCFLAGS   += -O0  #-ffast-math #-march=native -std=c++17
-      NVCCFLAGS += -O0
+      # -O2 igual para todas las versiones (decision 1 de DECISIONES.md).
+      # En nvcc, -O solo afecta al codigo de la CPU: los kernels se optimizan siempre.
+      CCFLAGS   += -O2  #-ffast-math #-march=native -std=c++17
+      NVCCFLAGS += -O2
       TARGET    := release
 endif
+
+# -Wall en lugar del -w original, que ocultaba todos los avisos.
+# nvcc no entiende -Wall: se lo pasa al compilador de la CPU con -Xcompiler.
+WARNFLAGS      := -Wall
+NVCC_WARNFLAGS := -Xcompiler -Wall
 
 
 # Common includes and paths for CUDA
@@ -99,22 +106,22 @@ all: build
 build: fichero_ejecutable
 
 wtime.o: wtime.cpp
-	$(GCC) $(CCFLAGS) $(EXTRA_CCFLAGS) -o $@ -c -w -fopenmp $<
+	$(GCC) $(CCFLAGS) $(EXTRA_CCFLAGS) -o $@ -c $(WARNFLAGS) -fopenmp $<
 
 fichero_common.o: fichero_common.cpp
-	$(GCC) $(CCFLAGS) $(EXTRA_CCFLAGS) -o $@ -c -w -fopenmp $<  
+	$(GCC) $(CCFLAGS) $(EXTRA_CCFLAGS) -o $@ -c $(WARNFLAGS) -fopenmp $<
 
 fichero_omp.o: fichero_omp.cpp
-	$(GCC) $(CCFLAGS) $(EXTRA_CCFLAGS) -o $@ -c -w -fopenmp $<
+	$(GCC) $(CCFLAGS) $(EXTRA_CCFLAGS) -o $@ -c $(WARNFLAGS) -fopenmp $<
 
 fichero_gpu.o: fichero_gpu.cu
-	$(NVCC) $(CCFLAGS) $(GENCODE_FLAGS) $(EXTRA_CCFLAGS) $(INCLUDES) -o $@ -c -w -Xptxas -dlcm=ca $<
+	$(NVCC) $(CCFLAGS) $(GENCODE_FLAGS) $(EXTRA_CCFLAGS) $(INCLUDES) -o $@ -c $(NVCC_WARNFLAGS) -Xptxas -dlcm=ca $<
 
 fichero_cpu.o: fichero_cpu.cpp
-	$(GCC) $(CCFLAGS) $(INCLUDES) $(EXTRA_CCFLAGS) -o $@ -c -w -fopenmp $<
+	$(GCC) $(CCFLAGS) $(INCLUDES) $(EXTRA_CCFLAGS) -o $@ -c $(WARNFLAGS) -fopenmp $<
 
 main.o: main.cpp
-	$(GCC) $(CCFLAGS) $(EXTRA_CCFLAGS) -o $@ -c -w -fopenmp $<
+	$(GCC) $(CCFLAGS) $(EXTRA_CCFLAGS) -o $@ -c $(WARNFLAGS) -fopenmp $<
 
 fichero_ejecutable: main.o wtime.o fichero_common.o fichero_cpu.o fichero_omp.o fichero_gpu.o
 	$(GCC) $(CCFLAGS) -o $@ $+ $(LDFLAGS) $(EXTRA_LDFLAGS)

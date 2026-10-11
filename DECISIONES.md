@@ -29,7 +29,9 @@ Aquí queda cada decisión de diseño: qué había que decidir, qué opciones ha
 
 **Recomendada:** B. **Elegida: B.**
 
-**Además:** se sustituye `-w` (oculta todos los avisos) por `-Wall`, para ver los avisos del compilador.
+**Además:** se sustituye `-w` (oculta todos los avisos) por `-Wall`, para ver los avisos del compilador. nvcc no admite `-Wall` directamente, así que en el `.cu` se pasa al compilador de la CPU con `-Xcompiler -Wall`.
+
+**Aplicado en el Makefile (fase A0).** Ojo: las reglas del Makefile no dependen de los `.h`. Si se cambia una cabecera (por ejemplo `type.h`), hay que hacer `make clean` antes de `make`.
 
 ---
 
@@ -143,4 +145,5 @@ Así el sistema completo pasa a la GPU con tres copias, sin punteros anidados.
 ## Pendientes
 
 - [ ] Recompilar con `type_data` = `double` y repetir las mediciones, para comparar con `float` (decisión 5).
-- [ ] Aplicar en el Makefile `-O2` (decisión 1) y `-Wall` en lugar de `-w`.
+- [x] Aplicar en el Makefile `-O2` (decisión 1) y `-Wall` en lugar de `-w`.
+- [ ] Validar en luna el toolchain: la plantilla compila y se ejecuta, y un kernel mínimo corre con el driver 535 (fase A0).
