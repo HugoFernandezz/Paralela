@@ -11,12 +11,15 @@
 #include <iomanip>
 #include "definitions.h"
 
-// includes, project
-extern void read_data (char *, TYPE_DATA, TYPE_DATA, type_data *, char);
-extern char *extract_name (char *);
-extern void exam_data (char *, TYPE_DATA *, TYPE_DATA *, char );
-//auxiliar functions
-extern void show_data (type_data *, unsigned int, unsigned int);
-extern void show_data_file (type_data *m, type_data *c, unsigned int c_numbers, unsigned int rows, unsigned int columns, char *output);
+// memoria
+extern void *reservar_memoria(size_t bytes, const char *que);
+extern void liberar_polinomios(Polinomios *p);
+extern void liberar_puntos(Puntos *p);
+// lectura de la entrada
+extern void leer_entrada(const char *fichero, Polinomios *funciones, Puntos *puntos);
+// impresión legible
+extern void imprimir_polinomio(const Polinomios *p, TYPE_DATA k);
+extern void imprimir_funciones(const Polinomios *f);
+extern void imprimir_puntos(const Puntos *pts);
 
 #endif /* COMMON_H_ */

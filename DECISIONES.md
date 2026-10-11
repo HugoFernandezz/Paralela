@@ -66,7 +66,21 @@ Aquí queda cada decisión de diseño: qué había que decidir, qué opciones ha
 **Consecuencias.**
 - El programa imprime los pasos 1 y 2 en notación legible (`∂f/∂x = 3·y + 2`). Así se cumple el requisito del enunciado de poder comprobarlos a mano.
 - Por la decisión 7, la cabecera incluye el número de funciones K.
-- El formato exacto (también el del fichero de puntos) se fija al implementar A1 y se añadirá aquí.
+
+**Formato exacto (fijado en A1).** Un único fichero con las funciones y los puntos. Los datos se separan con espacios o saltos de línea, y `#` empieza un comentario hasta el final de la línea.
+
+```
+N K                  número de variables y de funciones
+M_1 ... M_K          número de monomios de cada función
+coef e_1 ... e_N     un monomio por línea: primero los M_1 de f1, después los de f2...
+P                    número de puntos
+x_1 ... x_N          un punto por línea
+```
+
+- Se lee dato a dato con `fscanf`, sin búfer de línea, así que no hay límite de longitud de línea (el `MAX_LINE` de la plantilla no se usa).
+- Todos los números de monomios van en la cabecera para poder reservar la memoria de una vez, sin `realloc`.
+- Si falta un dato, sobra alguno al final o un recuento es inválido, el programa termina con un mensaje que dice qué dato esperaba.
+- Ejemplos: `casos/enunciado.txt` y `casos/prueba_lectura.txt`.
 
 ---
 
@@ -85,12 +99,16 @@ Aquí queda cada decisión de diseño: qué había que decidir, qué opciones ha
 
 **Recomendada:** B. **Elegida: B.**
 
-**Consecuencia, junto con la decisión 7 (se confirma al implementar A1).** Todas las funciones del sistema se guardan juntas:
+**Consecuencia, junto con la decisión 7 (confirmada en A1).** Todas las funciones del sistema se guardan juntas:
 - `coef[M_total]`;
 - `exp[M_total * N]`;
 - `inicio[K + 1]`, que indica dónde empieza cada función.
 
 Así el sistema completo pasa a la GPU con tres copias, sin punteros anidados.
+
+**Implementación (A1).** En `definitions.h`:
+- `Polinomios`: N, K, M_total, `inicio`, `coef` y `exp` (exponentes de tipo `int`). Se llama así y no "Sistema" porque la misma estructura servirá en A2 para guardar las derivadas parciales.
+- `Puntos`: P, N y `coord[P * N]`.
 
 ---
 
@@ -148,9 +166,34 @@ Así el sistema completo pasa a la GPU con tres copias, sin punteros anidados.
 
 ---
 
+## Detalles menores de A1 (sin alternativas que cambien el diseño)
+
+- **Opciones nuevas de `main.cpp`.**
+  - `-f FICHERO`: fichero de entrada.
+  - `-d`: imprime las funciones y los puntos leídos. Usa la variable `data_print` de la plantilla.
+- **Valores por defecto** (en `definitions.h`): modo 0 (secuencial), 1 hilo y bloques de 256 hilos.
+- **Nombres en la impresión.**
+  - Variables: `x`, `y`, `z` con hasta 3 variables, como en el enunciado; `x1 ... xN` con más.
+  - Funciones: `f` si hay una sola; `f1 ... fK` si hay varias.
+  - Notación: `3*x*y + x^2*z - 7`.
+- **Errores.** Un error de lectura o de memoria termina el programa con un mensaje en `stderr`. Las reservas se comprueban todas en `reservar_memoria()`.
+- **Fallos de la plantilla corregidos en `main.cpp`.**
+  - `mode` empezaba en 1.
+  - `-h` no se reconocía.
+  - `th` y `blockSize` no estaban inicializados.
+  - Los `printf` usaban `%d` con `unsigned long`.
+  - El índice sin signo se comparaba con `argc`.
+  - `strcpy` a un búfer de 100 caracteres se desbordaba con argumentos largos.
+  - Una opción sin valor al final de la línea leía `argv[argc]`, que es NULL.
+  - Se quitan `-o`, `-s` y las variables sin uso, que venían de la plantilla de CSV.
+- **`fichero_common.h`**: se quitan las declaraciones de funciones que no existían.
+
+---
+
 ## Pendientes
 
 - [ ] Recompilar con `type_data` = `double` y repetir las mediciones, para comparar con `float` (decisión 5).
 - [x] Aplicar en el Makefile `-O2` (decisión 1) y `-Wall` en lugar de `-w`.
 - [x] Validar en luna que la plantilla compila y se ejecuta (fase A0).
-- [ ] Validar en luna que un kernel mínimo compilado con nvcc 12.6 corre con el driver 535 (fase A0).
+- [x] Validar en luna que un kernel mínimo compilado con nvcc 12.6 corre con el driver 535 (fase A0).
+- [ ] A1: validar en luna la lectura e impresión de `casos/enunciado.txt` y `casos/prueba_lectura.txt`, y los mensajes de error.

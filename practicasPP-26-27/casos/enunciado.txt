@@ -1,0 +1,18 @@
+# Ejemplo del enunciado: f(x, y, z) = 3xy + 4yz + 2x + 5
+# Resultado esperado (paso 3): grad f(1, 2, 3) = (8, 15, 8)
+#
+# Formato: los datos se separan con espacios o saltos de línea, y '#'
+# empieza un comentario hasta el final de la línea.
+#
+# N (variables) y K (funciones)
+3 1
+# Número de monomios de cada función: M_1 ... M_K
+4
+# Un monomio por línea: coeficiente y exponentes de x, y, z
+3   1 1 0
+4   0 1 1
+2   1 0 0
+5   0 0 0
+# P (puntos) y un punto por línea con sus coordenadas x, y, z
+1
+1 2 3
