@@ -1,5 +1,8 @@
 # Ejemplo del enunciado: f(x, y, z) = 3xy + 4yz + 2x + 5
-# Resultado esperado (paso 3): grad f(1, 2, 3) = (8, 15, 8)
+# Resultado esperado:
+#   Paso 1: df/dx = 3y + 2,  df/dy = 3x + 4z,  df/dz = 4y
+#   Paso 2: grad f = (3y + 2, 3x + 4z, 4y)
+#   Paso 3: grad f(1, 2, 3) = (8, 15, 8)
 #
 # Formato: los datos se separan con espacios o saltos de línea, y '#'
 # empieza un comentario hasta el final de la línea.

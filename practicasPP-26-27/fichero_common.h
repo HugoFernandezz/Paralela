@@ -15,11 +15,16 @@
 extern void *reservar_memoria(size_t bytes, const char *que);
 extern void liberar_polinomios(Polinomios *p);
 extern void liberar_puntos(Puntos *p);
+extern size_t bytes_polinomios(const Polinomios *p);
 // lectura de la entrada
 extern void leer_entrada(const char *fichero, Polinomios *funciones, Puntos *puntos);
+// derivación simbólica (PASO 1 y PASO 2)
+extern void derivar(const Polinomios *f, Polinomios *g);
 // impresión legible
 extern void imprimir_polinomio(const Polinomios *p, TYPE_DATA k);
 extern void imprimir_funciones(const Polinomios *f);
 extern void imprimir_puntos(const Puntos *pts);
+extern void imprimir_paso1(const Polinomios *f, const Polinomios *g);
+extern void imprimir_paso2(const Polinomios *f, const Polinomios *g);
 
 #endif /* COMMON_H_ */

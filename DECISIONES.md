@@ -21,6 +21,7 @@ Aquí queda cada decisión de diseño: qué había que decidir, qué opciones ha
 | 5 | A1 | Tipo numérico (`type_data`) | A: `float` (repetir con `double` al final) |
 | 6 | A1 | Tamaño del problema | C: P puntos × N variables × M monomios |
 | 7 | A1 | Sistemas de ecuaciones | A: diseño para K funciones desde el principio |
+| 8 | A2 | Cómo se guarda el gradiente o Jacobiano (pasos 1 y 2) | A: explícito, en otro `Polinomios` con K·N polinomios |
 
 ---
 
@@ -166,6 +167,47 @@ Así el sistema completo pasa a la GPU con tres copias, sin punteros anidados.
 
 ---
 
+## Decisión 8. Cómo se guarda el gradiente o Jacobiano, resultado de los pasos 1 y 2 (fase A2)
+
+**Contexto.** La regla del paso 1 es ∂/∂xⱼ (c·xᵃ) = (c·aⱼ)·x^(a−eⱼ) si aⱼ > 0, y 0 en otro caso. Lo que hay que decidir es si su resultado se guarda o no. De eso dependen tres cosas: cuánta memoria cuesta, qué evalúa el paso 3 y lo fiel que queda la implementación al "seguimiento estricto del método" que exige el enunciado.
+
+Derivar nunca produce términos semejantes: si a ≠ b, entonces a−eⱼ ≠ b−eⱼ. Por eso no hace falta agrupar nada después de derivar.
+
+Para comparar memoria se usa este ejemplo: N = 1000, M = 10⁴ y s = 5 variables por monomio de media. Los exponentes de f ocupan 40 MB.
+
+**Opciones.**
+- **A. Explícito.** Otro `Polinomios` con K·N polinomios: ∂fₖ/∂xⱼ va en la posición k·N + j, con sus propios coeficientes y exponentes.
+  - A favor: es el método literal, porque el paso 3 evalúa lo que produjo el paso 2. Usa la misma estructura y la misma rutina que f. Es lo más fácil de imprimir y explicar, y pasa a la GPU con tres copias.
+  - En contra: ocupa s veces lo que f (200 MB más en el ejemplo). Si cada monomio usara todas las variables (s = N), ocuparía N veces más: 40 GB.
+- **B. Implícito.** No se guarda nada: el paso 3 aplica la regla al vuelo sobre los monomios de f.
+  - A favor: no ocupa memoria extra y admite un algoritmo más rápido. Con productos parciales por la izquierda y por la derecha cuesta M·N por punto en lugar de s·M·N.
+  - En contra: los pasos 1 y 2 solo existirían al imprimir, lo que es un riesgo frente a las instrucciones metodológicas obligatorias. Además, en la versión rápida varios monomios suman en la misma derivada, lo que causa condiciones de carrera.
+- **C. Híbrido.** Por cada monomio derivado se guarda el coeficiente c·aⱼ y el índice del monomio de f del que viene.
+  - A favor: ocupa poco (unos 0,6 MB en el ejemplo).
+  - En contra: el gradiente queda guardado solo a medias, los accesos son indirectos e irregulares y es lo más difícil de explicar.
+
+**Recomendada:** A. **Elegida: A.**
+
+**Consecuencias.**
+- La derivación se ejecuta una sola vez, en `derivar()` de `fichero_common.cpp`, y se mide aparte. Es la parte secuencial común a las tres versiones (entra en el análisis de Amdahl).
+- La estructura se construye en dos pasadas. Primero se cuentan los monomios de cada derivada y se calculan las sumas acumuladas en `inicio`. Después se rellenan los coeficientes y los exponentes. Los monomios derivados conservan el orden que tenían en f.
+- La fila k del Jacobiano son los polinomios k·N … k·N + N−1. Con K = 1 es el gradiente.
+- El generador de A4 tendrá que crear monomios con pocas variables cuando N sea grande. El programa imprime cuánto ocupan las derivadas para poder dimensionar los casos.
+- La opción B queda como candidata para B2-opt ("replantear el problema a nivel algorítmico"), medida contra A.
+
+---
+
+## Detalles menores de A2
+
+- **Impresión de los pasos 1 y 2 (con `-d`), como en el enunciado:**
+  - `∂f/∂x = ∂/∂x(3*x*y + 4*y*z + 2*x + 5) = 3*y + 0 + 2 + 0 = 3*y + 2`
+  - `∇f = (∂f/∂x, ∂f/∂y, ∂f/∂z) = (3*y + 2, 3*x + 4*z, 4*y)`
+  - Con varias funciones se escribe `∂f1/∂x1` y hay una línea `∇fk` por cada fila del Jacobiano.
+- **Términos de la derivada.** La derivada de cada monomio por separado (la parte `3*y + 0 + 2 + 0`) se imprime a partir de la estructura derivada, no se recalcula al imprimir.
+- **Derivada nula.** Una derivada sin monomios se imprime como `0`.
+
+---
+
 ## Detalles menores de A1 (sin alternativas que cambien el diseño)
 
 - **Opciones nuevas de `main.cpp`.**
@@ -196,4 +238,8 @@ Así el sistema completo pasa a la GPU con tres copias, sin punteros anidados.
 - [x] Aplicar en el Makefile `-O2` (decisión 1) y `-Wall` en lugar de `-w`.
 - [x] Validar en luna que la plantilla compila y se ejecuta (fase A0).
 - [x] Validar en luna que un kernel mínimo compilado con nvcc 12.6 corre con el driver 535 (fase A0).
-- [ ] A1: validar en luna la lectura e impresión de `casos/enunciado.txt` y `casos/prueba_lectura.txt`, y los mensajes de error.
+- [x] A1: validar en luna la lectura e impresión de `casos/enunciado.txt` y `casos/prueba_lectura.txt`, y los mensajes de error.
+- [ ] A1: confirmar que `make` no da avisos en `main.cpp` ni en `fichero_common.cpp` (no se pegó la salida de `make`).
+- [ ] A2: validar en luna los pasos 1 y 2 con `casos/enunciado.txt` y `casos/prueba_lectura.txt`.
+- [ ] A3: en `main.cpp`, comprobar el modo antes de leer el fichero (ahora `-m 7` lee el fichero antes de dar el error).
+- [ ] B2-opt (opcional): probar el gradiente implícito con productos parciales (opción B de la decisión 8) y medirlo contra A.

@@ -27,9 +27,9 @@ int main (int argc, char **argv){
 	int i, data_print = 0;
 	TYPE_DATA mode, blockSize, th;
 	const char *fichero = NULL;
-	Polinomios funciones;
+	Polinomios funciones, derivadas;
 	Puntos puntos;
-	double time_init, time_end, tiempo_lectura;
+	double time_init, time_end, tiempo_lectura, tiempo_derivacion;
 
 	mode = 0; //SEQUENTIAL MODE
 	th = HILOS_POR_DEFECTO;
@@ -85,13 +85,27 @@ int main (int argc, char **argv){
 	leer_entrada(fichero, &funciones, &puntos);
 	tiempo_lectura = wtime() - time_init;
 
-	printf("DATA. %lu variables, %lu funciones, %lu monomios en total, %lu puntos\n",
-	       funciones.num_variables, funciones.num_polinomios, funciones.num_monomios, puntos.num_puntos);
+	// PASOS 1 y 2: derivación simbólica. Se hace una sola vez, en código común a
+	// las tres versiones, y se mide aparte: es la parte que no se paraleliza.
+	time_init = wtime();
+	derivar(&funciones, &derivadas);
+	tiempo_derivacion = wtime() - time_init;
+
+	printf("DATA. %lu variables, %lu funciones con %lu monomios en total (%.2f MB), %lu puntos\n",
+	       funciones.num_variables, funciones.num_polinomios, funciones.num_monomios,
+	       (double) bytes_polinomios(&funciones) / BYTES_POR_MB, puntos.num_puntos);
+	printf("DERIVADAS. %lu polinomios, %lu monomios en total (%.2f MB)\n",
+	       derivadas.num_polinomios, derivadas.num_monomios, (double) bytes_polinomios(&derivadas) / BYTES_POR_MB);
 	printf("Tiempo de lectura: %f seg\n", tiempo_lectura);
+	printf("Tiempo de derivacion: %f seg\n", tiempo_derivacion);
 	if (data_print) {
 		printf("\n");
 		imprimir_funciones(&funciones);
 		imprimir_puntos(&puntos);
+		printf("\n");
+		imprimir_paso1(&funciones, &derivadas);
+		printf("\n");
+		imprimir_paso2(&funciones, &derivadas);
 	}
 
 	switch (mode) {
@@ -120,12 +134,14 @@ int main (int argc, char **argv){
 	  	default:
       			fprintf(stderr, "Wrong mode type: %lu.  Use -h for help.\n", mode);
 			liberar_polinomios(&funciones);
+			liberar_polinomios(&derivadas);
 			liberar_puntos(&puntos);
 			return 1;
 	}
 	printf("\nTime: %f seg\n",time_end);
 
 	liberar_polinomios(&funciones);
+	liberar_polinomios(&derivadas);
 	liberar_puntos(&puntos);
 	return 0;
 

@@ -16,11 +16,12 @@ static const TYPE_DATA MAX_VARIABLES_CON_LETRA = sizeof(LETRAS_VARIABLES) - 1;
 /* ------------------------------------------------------------------ */
 
 // malloc con comprobación: sin memoria el programa no puede seguir, así que
-// dice qué estaba reservando y termina.
+// dice qué estaba reservando y termina. malloc(0) puede devolver NULL sin
+// que sea un error (por ejemplo, derivadas de funciones constantes).
 void *reservar_memoria(size_t bytes, const char *que)
 {
 	void *p = malloc(bytes);
-	if (p == NULL) {
+	if (p == NULL && bytes > 0) {
 		fprintf(stderr, "Error: no hay memoria para %s (%zu bytes)\n", que, bytes);
 		exit(EXIT_FAILURE);
 	}
@@ -174,6 +175,64 @@ void leer_entrada(const char *fichero, Polinomios *funciones, Puntos *puntos)
 }
 
 /* ------------------------------------------------------------------ */
+/* Derivación simbólica: PASO 1 y PASO 2                               */
+/* ------------------------------------------------------------------ */
+
+// Deriva cada función f_k respecto a cada variable x_j y guarda el resultado
+// en g (decisión 8): g tiene K·N polinomios y ∂f_k/∂x_j es el polinomio k*N + j.
+// Así la fila k del Jacobiano son los polinomios k*N .. k*N + N-1; con K = 1,
+// g es el gradiente.
+// Regla del PASO 1 para cada monomio:
+//     ∂/∂x_j (c · x^a) = (c·a_j) · x^(a - e_j)   si a_j > 0,   0 si a_j = 0
+// donde x^(a - e_j) son los mismos exponentes con el de x_j un grado menos.
+void derivar(const Polinomios *f, Polinomios *g)
+{
+	TYPE_DATA N = f->num_variables, K = f->num_polinomios, k, j, i, d, r;
+
+	g->num_variables = N;
+	g->num_polinomios = K * N;
+	g->inicio = (TYPE_DATA *) reservar_memoria((K * N + 1) * sizeof(TYPE_DATA), "el inicio de cada derivada");
+
+	// Primera pasada: la derivada (k, j) tiene tantos monomios como monomios de
+	// f_k contienen x_j (los demás dan 0). Con las sumas acumuladas de esos
+	// recuentos sale inicio[], igual que al leer la entrada.
+	g->inicio[0] = 0;
+	for (k = 0; k < K; k++)
+		for (j = 0; j < N; j++) {
+			d = k * N + j;
+			g->inicio[d + 1] = g->inicio[d];
+			for (i = f->inicio[k]; i < f->inicio[k + 1]; i++)
+				if (f->exp[i * N + j] > 0)
+					g->inicio[d + 1]++;
+		}
+	g->num_monomios = g->inicio[K * N];
+
+	// Segunda pasada: aplica la regla a cada monomio que contiene x_j. Los
+	// monomios derivados conservan el orden que tenían en f.
+	g->coef = (type_data *) reservar_memoria(g->num_monomios * sizeof(type_data), "los coeficientes de las derivadas");
+	g->exp = (int *) reservar_memoria(g->num_monomios * N * sizeof(int), "los exponentes de las derivadas");
+	for (k = 0; k < K; k++)
+		for (j = 0; j < N; j++) {
+			r = g->inicio[k * N + j];	// siguiente monomio libre de la derivada (k, j)
+			for (i = f->inicio[k]; i < f->inicio[k + 1]; i++)
+				if (f->exp[i * N + j] > 0) {
+					g->coef[r] = f->coef[i] * f->exp[i * N + j];
+					memcpy(&g->exp[r * N], &f->exp[i * N], N * sizeof(int));
+					g->exp[r * N + j]--;	// x_j pierde un grado
+					r++;
+				}
+		}
+}
+
+// Bytes que ocupa un conjunto de polinomios. Sirve para ver cuánto cuesta
+// guardar el gradiente de forma explícita.
+size_t bytes_polinomios(const Polinomios *p)
+{
+	return (p->num_polinomios + 1) * sizeof(TYPE_DATA)
+	       + p->num_monomios * (sizeof(type_data) + p->num_variables * sizeof(int));
+}
+
+/* ------------------------------------------------------------------ */
 /* Impresión legible                                                   */
 /* ------------------------------------------------------------------ */
 
@@ -234,8 +293,80 @@ static void imprimir_monomio(const Polinomios *p, TYPE_DATA i, int es_primero)
 void imprimir_polinomio(const Polinomios *p, TYPE_DATA k)
 {
 	TYPE_DATA i;
+	if (p->inicio[k] == p->inicio[k + 1]) {	// sin monomios: una derivada nula
+		printf("0");
+		return;
+	}
 	for (i = p->inicio[k]; i < p->inicio[k + 1]; i++)
 		imprimir_monomio(p, i, i == p->inicio[k]);
+}
+
+static void imprimir_nombre_derivada(TYPE_DATA k, TYPE_DATA j, TYPE_DATA num_funciones, TYPE_DATA num_variables)
+{
+	printf("∂");
+	imprimir_nombre_funcion(k, num_funciones);
+	printf("/∂");
+	imprimir_variable(j, num_variables);
+}
+
+// PASO 1, como en el enunciado:
+//     ∂f/∂x = ∂/∂x(3*x*y + 4*y*z + 2*x + 5) = 3*y + 0 + 2 + 0 = 3*y + 2
+// Primero la derivada de cada monomio de f por separado y después la derivada
+// simplificada. Las dos salen de g, sin volver a derivar: como los monomios
+// derivados conservan el orden de f, cada monomio de f que contiene x_j se
+// corresponde con el siguiente monomio de la derivada (k, j).
+void imprimir_paso1(const Polinomios *f, const Polinomios *g)
+{
+	TYPE_DATA N = f->num_variables, K = f->num_polinomios, k, j, i, r;
+
+	printf("PASO 1. Derivadas parciales\n");
+	for (k = 0; k < K; k++)
+		for (j = 0; j < N; j++) {
+			imprimir_nombre_derivada(k, j, K, N);
+			printf(" = ∂/∂");
+			imprimir_variable(j, N);
+			printf("(");
+			imprimir_polinomio(f, k);
+			printf(") = ");
+			r = g->inicio[k * N + j];
+			for (i = f->inicio[k]; i < f->inicio[k + 1]; i++) {
+				int es_primero = (i == f->inicio[k]);
+				if (f->exp[i * N + j] > 0)
+					imprimir_monomio(g, r++, es_primero);
+				else
+					printf("%s", es_primero ? "0" : " + 0");
+			}
+			printf(" = ");
+			imprimir_polinomio(g, k * N + j);
+			printf("\n");
+		}
+}
+
+// PASO 2: el gradiente como vector de N polinomios, como en el enunciado:
+//     ∇f = (∂f/∂x, ∂f/∂y, ∂f/∂z) = (3*y + 2, 3*x + 4*z, 4*y)
+// Con varias funciones, una línea por fila del Jacobiano.
+void imprimir_paso2(const Polinomios *f, const Polinomios *g)
+{
+	TYPE_DATA N = f->num_variables, K = f->num_polinomios, k, j;
+
+	printf("PASO 2. %s\n", K == 1 ? "Gradiente" : "Jacobiano (una fila por función)");
+	for (k = 0; k < K; k++) {
+		printf("∇");
+		imprimir_nombre_funcion(k, K);
+		printf(" = (");
+		for (j = 0; j < N; j++) {
+			if (j > 0)
+				printf(", ");
+			imprimir_nombre_derivada(k, j, K, N);
+		}
+		printf(") = (");
+		for (j = 0; j < N; j++) {
+			if (j > 0)
+				printf(", ");
+			imprimir_polinomio(g, k * N + j);
+		}
+		printf(")\n");
+	}
 }
 
 // Las K funciones de entrada, una por línea: f = 3*x*y + 4*y*z + 2*x + 5

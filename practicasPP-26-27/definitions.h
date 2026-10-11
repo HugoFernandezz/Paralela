@@ -52,4 +52,6 @@ typedef struct {
 // Valores por defecto de las opciones -t y -b de main.cpp
 #define HILOS_POR_DEFECTO 1
 #define TAM_BLOQUE_POR_DEFECTO 256
+
+#define BYTES_POR_MB (1024.0 * 1024.0)
 #endif
